@@ -1,0 +1,23 @@
+{
+  "name": "citation_electron",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@keyv/sqlite": "^2.0.2",
+    "bibtex-parse": "^2.1.0",
+    "electron-store": "^6.0.0",
+    "keyv": "^4.0.1",
+    "random-useragent": "^0.4.0",
+    "sqlite3": "^5.0.0"
+  },
+  "devDependencies": {
+    "axios": "^0.19.2",
+    "electron": "^9.2.0"
+  }
+}
