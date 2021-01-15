@@ -22,6 +22,10 @@ $ npm start
 
 Then use `menu bar - kuriko functions - start | stop | pause| quit` to record data.
 
+## Config
+
+You can change `src/config.js` to control the interval between each request sent to google
+
 ## Data
 
 all data is stored in `db/scholar.json` 
