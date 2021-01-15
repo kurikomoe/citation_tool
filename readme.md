@@ -30,5 +30,5 @@ all data is stored in `db/scholar.json`
 
 # Screenshots
 
-![image-20210115113908606](https://kurikomoe-1300672427.image.myqcloud.com/images/image-20210115113908606.png)
+
 
