@@ -6,14 +6,16 @@ const bibtexParse = require('bibtex-parse');
 const axios = require('axios');
 
 // Electron
-const electron = require('electron');
-const ipc = electron.ipcRenderer;
-const ipcM = electron.ipcMain;
-const remote = electron.remote;
-const Menu = remote.Menu;
+const { ipcRenderer, ipcMain, remote } = require('electron');
+// const electron = require('electron');
+const ipc = ipcRenderer;
+const ipcM = ipcMain;
+// const remote = electron.remote;
+// const Menu = remote.Menu;
 
 // variables from global
 const store = remote.getGlobal("store");
+const store_author = remote.getGlobal("store_author");
 const Global = remote.getGlobal("Global");
 
 ipc.on('process_this_page', async () => {
@@ -73,13 +75,13 @@ async function parse_bibtex(biburl) {
     .then(contents => bibtexParse.entries(contents))
     .catch(() => console.log("Can’t access " + biburl + " response. Blocked by browser?"))
 
-  if (bib.length !== 1) {
+  if (bib === null || bib.length !== 1) {
     Global.is_processing = false;
     console.error("recaptcha in bib!");
 
     Global.do_bib_url_recaptcha = true;
     Global.last_url = location.href;
-    location.href = "biburl";
+    location.href = biburl;
 
     location.reload();
     return null;
@@ -108,11 +110,25 @@ function get_paper_attributes(paper_el) {
   let lid = parent.getAttribute('data-lid');
   let rp = parent.getAttribute('data-rp');
 
+  let ref = paper_el.querySelector('a')?.href;
+  let pdf = parent.firstChild.querySelector('a')?.href;
+
+  // Get all known authors
+  let authors = []
+  for (let el of paper_el.nextSibling.querySelectorAll('a')) {
+    let name = el.textContent;
+    let profile = el.href;
+    authors.push([name, profile])
+  }
+
   let title = paper_el.textContent;
 
   return {
     title,
     cid, did, lid, rp,
+    "ref": ref,
+    "pdf": pdf,
+    authors_raw: authors,
   };
 }
 
@@ -150,14 +166,53 @@ async function process_page() {
       console.log("Stop Process");
       return;
     }
+
     let attrs = get_paper_attributes(el);
-    console.log(`「${attrs['title']}」`);
-    let ret = store.get(`${name}.${attrs['title']}.bib`);
-    if (ret) {
+
+    // Check Patterns
+    if (attrs?.ref?.includes("patents.google.com")) {
+      console.log("Ignore Patent")
       continue;
     }
-    store.set(`${name}.${attrs['title']}`, attrs);
 
+    console.log(`「${attrs['title']}」`);
+    // Check author info
+    let authors_raw = attrs.authors_raw;
+    for (let i = 0; i < authors_raw?.length; i++) {
+      let name = authors_raw[i][0];
+      let inst = authors_raw[i][1];
+      if (inst.includes("http")) {
+        // re-parse inst
+        let safe_inst = inst;
+        let query = store_author.get(`${safe_inst}`);
+        if (query) {
+          // console.log(query);
+          authors_raw[i] = query;
+        } else {
+          authors_raw[i] = await axios.get(inst).then((res) => {
+            let el = document.createElement('html');
+            el.innerHTML = res.data;
+            let name_el = el.querySelector("#gsc_prf_in");
+            let name = name_el.textContent;
+            let inst = name_el.parentElement.nextSibling.textContent;
+            return [name, inst];
+          });
+          // console.log(authors_raw[i])
+          store_author.set(`${safe_inst}`, authors_raw[i]);
+          await sleep(config.GET_AUTHOR_DELAY);
+        }
+      }
+    }
+    attrs.authors_raw = authors_raw;
+
+    let ret = store.get(`${name}.${attrs['title']}.bib`);
+    if (ret) {
+      attrs.bib = ret;
+      store.set(`${name}.${attrs['title']}`, attrs);
+      continue;
+    }
+
+    store.set(`${name}.${attrs['title']}`, attrs);
     let biburl = await get_bib_url(attrs['cid']);
     let bib = await parse_bibtex(biburl);
     bib['AUTHOR'] = bib["AUTHOR"]

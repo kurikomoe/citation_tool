@@ -18,6 +18,8 @@ global.Global = {
   last_url: "",
   do_bib_url_recaptcha: false,
 }
+const storeAuthor = new Store({ name: "authors", cwd: app.getAppPath() + '/db/' });
+global.store_author = storeAuthor;
 
 app.commandLine.appendSwitch('disable-features', 'OutOfBlinkCors')
 
